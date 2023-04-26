@@ -52,16 +52,18 @@ Wed Oct  4 06:39:21 2017 Background stdout: b'Wed Oct  4 03:39:20 2017 All threa
 Wed Oct  4 06:39:22 2017 All threads done...
 """
 
-import sys, os, time, socket, random
-from select import select
-
+import os
+import random
+import socket
 import subprocess
+import sys
 import threading
+import time
 from queue import Queue
+from select import select
 
 
 class PipeReader(threading.Thread):
-
     def __init__(self, fd, queue=None, autostart=True):
         self._fd = fd
 
@@ -93,24 +95,29 @@ class PipeReader(threading.Thread):
 
 
 def log(*args):
-    print(time.asctime(), ' '.join([str(x) for x in args]))
+    print(time.asctime(), " ".join([str(x) for x in args]))
 
 
 def run_self_on_remote(host, port):
     with open(__file__) as _self:
-        process = subprocess.Popen(['ssh', host, 'python3', '-', str(port), '| cat'], stdin=_self, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            ["ssh", host, "python3", "-", str(port), "| cat"],
+            stdin=_self,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
         stdout = PipeReader(process.stdout, autostart=True)
         stderr = PipeReader(process.stderr, autostart=True)
 
         while not stdout.eof() or not stderr.eof():
             for line in stdout.readlines():
-                log('Background stdout: ' + repr(line))
+                log("Background stdout: " + repr(line))
 
             for line in stderr.readlines():
-                log('Background stderr: ' + repr(line))
+                log("Background stderr: " + repr(line))
 
-            time.sleep(.25)
+            time.sleep(0.25)
 
         stdout.join()
         stderr.join()
@@ -121,19 +128,19 @@ def run_self_on_remote(host, port):
 
 def puncher(host, port):
     try:
-        host = host.split('@')[1]
+        host = host.split("@")[1]
     except:
         pass
 
-    log('Attempitng to punch to host: %s on port: %s' % (host, port))
+    log("Attempitng to punch to host: %s on port: %s" % (host, port))
 
-    log('Binding local socket')
+    log("Binding local socket")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(('', port))
+    sock.bind(("", port))
 
     token = str(random.random())
-    log('Generated random token:', token)
-    remote_token = 'NULL'
+    log("Generated random token:", token)
+    remote_token = "NULL"
 
     sock.setblocking(0)
     sock.settimeout(2)
@@ -141,78 +148,75 @@ def puncher(host, port):
     tokens_synced = False
 
     for i in range(10):
-        r,w,x = select([sock], [sock], [], 0)
+        r, w, x = select([sock], [sock], [], 0)
 
         if tokens_synced:
-            log('Whee, hole was punched from both ends')
+            log("Whee, hole was punched from both ends")
             break
 
-        log('====== Attempt #%s' % i)
+        log("====== Attempt #%s" % i)
 
         if r:
             data, addr = sock.recvfrom(1024)
-            log('Receive:', data)
+            log("Receive:", data)
             data = data.decode()
 
-            if remote_token == 'NULL':
+            if remote_token == "NULL":
                 remote_token = data.split()[0]
-                log('Remote token changed:', remote_token)
+                log("Remote token changed:", remote_token)
 
             if len(data.split()) == 3:
                 if data.split()[1] == token and data.split()[0] == remote_token:
                     tokens_synced = True
 
         if w:
-            data = '%s %s' % (token, remote_token)
+            data = "%s %s" % (token, remote_token)
 
-            if remote_token != 'NULL':
-                data += ' ack'
+            if remote_token != "NULL":
+                data += " ack"
 
             data = data.encode()
             sock.sendto(data, (host, port))
-            log('Sent:', data)
+            log("Sent:", data)
 
         time.sleep(1)
 
     sock.close()
 
-    return remote_token != 'NULL'
+    return remote_token != "NULL"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     on_remote = False
 
     stdin = None
     if len(sys.argv) == 3:
         stdin = sys.argv[0]
         try:
-            assert stdin == '-'
+            assert stdin == "-"
             host = sys.argv[1]
             port = int(sys.argv[2])
 
         except:
             stdin = False
 
-
     if not stdin:
         try:
-            host = os.environ['SSH_CLIENT'].split()[0]
+            host = os.environ["SSH_CLIENT"].split()[0]
             port = int(sys.argv[1])
-            log('Using port: %s' %port)
+            log("Using port: %s" % port)
             on_remote = True
 
         except:
             host = sys.argv[1]
             port = int(sys.argv[2])
 
-
     def do_punch():
         if puncher(host, port):
-            log('Punched UDP hole to %s:%s successfully!' % (host, port))
+            log("Punched UDP hole to %s:%s successfully!" % (host, port))
 
         else:
-            log('Punch failed :(')
-
+            log("Punch failed :(")
 
     try:
         puncher_thread = threading.Thread(target=do_punch)
@@ -220,11 +224,11 @@ if __name__ == '__main__':
         puncher_thread.start()
 
         if not on_remote:
-            log('Attempitng to start reverse punch on remote...')
+            log("Attempitng to start reverse punch on remote...")
             remote_puncher_thread = threading.Thread(
-                    target = run_self_on_remote,
-                    args = [host, port],
-                    )
+                target=run_self_on_remote,
+                args=[host, port],
+            )
             remote_puncher_thread.setDaemon(True)
             remote_puncher_thread.start()
 
@@ -238,8 +242,8 @@ if __name__ == '__main__':
                 elif on_remote:
                     break
 
-        log('All threads done...')
+        log("All threads done...")
 
     except (KeyboardInterrupt, SystemExit):
-        log('Caught interrupt, exiting...')
+        log("Caught interrupt, exiting...")
         sys.exit()

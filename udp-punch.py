@@ -55,7 +55,6 @@ Wed Oct  4 06:39:22 2017 All threads done...
 import sys, os, time, socket, random
 from select import select
 
-import multiprocessing
 import subprocess
 import threading
 from queue import Queue

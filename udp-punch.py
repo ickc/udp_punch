@@ -230,9 +230,9 @@ if __name__ == '__main__':
 
         while True:
             time.sleep(1)
-            if not puncher_thread.isAlive():
+            if not puncher_thread.is_alive():
 
-                if not on_remote and not remote_puncher_thread.isAlive():
+                if not on_remote and not remote_puncher_thread.is_alive():
                     break
 
                 elif on_remote:
